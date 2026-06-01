@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JANO — Motor de Cálculo PPP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy:#1a2b4a;--navy2:#243558;--green:#27ae60;--green2:#2ecc71;
+    --bg:#f4f5f7;--white:#ffffff;--text:#2d3748;--text2:#718096;
+    --border:#e2e8f0;--sidebar-w:44px;--header-h:56px;
+  }
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;overflow:hidden;height:100vh;}
+  #app{display:flex;height:100vh;}
+  #sidebar{width:var(--sidebar-w);background:var(--navy);display:flex;flex-direction:column;align-items:center;flex-shrink:0;z-index:10;}
+  .sb-top{width:100%;display:flex;align-items:center;justify-content:center;height:48px;background:var(--navy2);cursor:pointer;}
+  .sb-search{padding:14px 0 6px;color:#8fa3c0;cursor:pointer;}
+  .sb-nav{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;}
+  .sb-nav-item{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8fa3c0;transition:all .15s;position:relative;}
+  .sb-nav-item:hover,.sb-nav-item.active{background:rgba(255,255,255,.12);color:#fff;}
+  .sb-tooltip{position:absolute;left:48px;background:#0f1e35;color:#fff;padding:4px 10px;border-radius:5px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:999;border:1px solid rgba(255,255,255,.1);}
+  .sb-nav-item:hover .sb-tooltip{opacity:1;}
+  .sb-avatar{width:32px;height:32px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;margin-bottom:12px;cursor:pointer;}
+  #main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  #page-header{background:var(--white);padding:0 24px;height:var(--header-h);display:flex;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;}
+  #page-header h1{font-size:17px;font-weight:600;}
+  .subtitle{font-size:12px;color:var(--text2);margin-top:2px;}
+  .header-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+  #content{flex:1;overflow-y:auto;padding:20px 24px;}
+  .view{display:none;}.view.active{display:block;}
+  .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .metric-card{background:var(--white);border-radius:10px;padding:16px;border:1px solid var(--border);}
+  .mc-label{font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+  .mc-value{font-size:24px;font-weight:600;font-family:'DM Mono',monospace;}
+  .mc-sub{font-size:11px;color:var(--text2);margin-top:4px;}
+  .mc-badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;margin-top:6px;}
+  .mc-badge.green{background:#dcfce7;color:#16a34a;}
+  .mc-badge.amber{background:#fef3c7;color:#d97706;}
+  .mc-badge.red{background:#fee2e2;color:#dc2626;}
+  .mc-badge.blue{background:#dbeafe;color:#2563eb;}
+  .table-wrap{background:var(--white);border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:16px;}
+  .table-toolbar{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .search-box{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;max-width:280px;}
+  .search-box input{border:none;background:none;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);outline:none;width:200px;}
+  .search-box input::placeholder{color:var(--text2);}
+  .btn-primary{padding:7px 14px;background:var(--green);color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .15s;}
+  .btn-primary:hover{background:var(--green2);}
+  .btn-primary.danger{background:#dc2626;}.btn-primary.danger:hover{background:#ef4444;}
+  .btn-icon{width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);}
+  .btn-icon:hover{background:var(--bg);}
+  .btn-secondary{padding:7px 14px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;}
+  .btn-secondary:hover{background:var(--bg);}
+  table{width:100%;border-collapse:collapse;}
+  th{background:#f8f9fa;padding:9px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:#fafbfc;}
+  .td-actions{display:flex;gap:6px;align-items:center;}
+  .td-actions button{width:26px;height:26px;border:none;background:none;cursor:pointer;color:var(--text2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .td-actions button:hover{background:var(--bg);}
+  .badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;display:inline-block;}
+  .badge-green{background:#dcfce7;color:#16a34a;}
+  .badge-amber{background:#fef3c7;color:#d97706;}
+  .badge-red{background:#fee2e2;color:#dc2626;}
+  .badge-blue{background:#dbeafe;color:#2563eb;}
+  .badge-gray{background:#f1f5f9;color:#64748b;}
+  .badge-purple{background:#f3e8ff;color:#9333ea;}
+  .progress-bar{height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:80px;}
+  .progress-fill{height:100%;border-radius:3px;}
+  .fill-green{background:#27ae60;}.fill-amber{background:#f59e0b;}.fill-red{background:#ef4444;}
+  .detail-panel{background:var(--white);border-radius:10px;border:1px solid var(--border);padding:20px;margin-bottom:16px;}
+  .detail-panel h3{font-size:13px;font-weight:600;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+  .form-grid{display:grid;gap:12px;}
+  .cols2{grid-template-columns:1fr 1fr;}
+  .cols3{grid-template-columns:1fr 1fr 1fr;}
+  .form-group label{display:block;font-size:11px;font-weight:500;color:var(--text2);margin-bottom:4px;}
+  .form-group input,.form-group select,.form-group textarea{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);background:var(--white);outline:none;}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#93c5fd;}
+  .field-val{font-size:13px;font-weight:500;padding:6px 0;}
+  .info-row{display:flex;gap:24px;margin-bottom:14px;}
+  .info-item{flex:1;}
+  .ii-label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:2px;}
+  .ii-val{font-size:13px;font-weight:500;}
+  .section-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .pill{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:#dbeafe;color:#2563eb;}
+  .pill.red{background:#fee2e2;color:#dc2626;}
+  .tabs{display:flex;gap:2px;background:#f1f5f9;border-radius:8px;padding:3px;margin-bottom:16px;width:fit-content;}
+  .tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);border:none;background:none;font-family:'DM Sans',sans-serif;}
+  .tab.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .page-nav{display:flex;gap:8px;margin-bottom:16px;}
+  .nav-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--text2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;}
+  .nav-btn:hover{border-color:#93c5fd;color:#2563eb;}
+  .nav-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .acum-box{background:var(--white);border-radius:10px;border:1px solid var(--border);padding:16px;}
+  .acum-label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:8px;}
+  .acum-number{font-size:30px;font-weight:700;font-family:'DM Mono',monospace;}
+  .acum-total{font-size:11px;color:var(--text2);margin-top:2px;}
+  .acum-value{font-size:15px;font-weight:600;color:var(--green);margin-top:6px;}
+  .ind-row{display:grid;grid-template-columns:1fr 60px 90px 90px 70px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);}
+  .ind-row:last-child{border-bottom:none;}
+  .ind-name{font-size:12px;font-weight:500;}
+  .ind-source{font-size:11px;color:var(--text2);}
+  .ind-meta{font-size:11px;color:var(--text2);text-align:center;}
+  .ind-pct{font-size:13px;font-weight:700;text-align:center;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-hdr{font-size:10px;color:var(--text2);text-align:center;padding:2px 0;font-weight:600;}
+  .cal-day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;}
+  .cal-day.hit{background:#dcfce7;color:#16a34a;}
+  .cal-day.hit-super{background:#16a34a;color:#fff;}
+  .cal-day.miss{background:#fee2e2;color:#dc2626;}
+  .cal-day.absent{background:#f1f5f9;color:#94a3b8;}
+  .cal-day.future{background:#f8f9fa;color:#cbd5e1;}
+  .cal-day.weekend{background:#f1f5f9;color:#94a3b8;}
+  .int-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .int-card{background:var(--white);border-radius:10px;border:1px solid var(--border);padding:14px;}
+  .ic-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .ic-dot{width:8px;height:8px;border-radius:50%;}
+  .ic-dot.online{background:#27ae60;} .ic-dot.warning{background:#f59e0b;} .ic-dot.offline{background:#ef4444;}
+  .ic-name{font-size:12px;font-weight:600;}
+  .ic-type{font-size:11px;color:var(--text2);}
+  .ic-stat{font-size:11px;color:var(--text2);margin-top:3px;}
+  .formula-box{background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:11px;color:#475569;line-height:1.7;}
+  .divider{height:1px;background:var(--border);margin:14px 0;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--white);border-radius:12px;width:600px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+  .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:1;}
+  .modal-header h2{font-size:15px;font-weight:600;}
+  .modal-sub{font-size:12px;color:var(--text2);}
+  .modal-body{padding:20px;}
+  .modal-close{width:28px;height:28px;border:none;background:none;cursor:pointer;color:var(--text2);font-size:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .modal-close:hover{background:var(--bg);}
+  .modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+  .alert-warning{background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#92400e;}
+  .legend-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text2);}
+  .legend-dot{width:10px;height:10px;border-radius:2px;}
+  select{font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);}
+  .cycle-pill{font-size:11px;color:var(--text2);background:var(--bg);padding:4px 10px;border-radius:20px;border:1px solid var(--border);}
+  ::-webkit-scrollbar{width:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-top">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="sb-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-nav-item active" onclick="navigate('dashboard')" title="Dashboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span class="sb-tooltip">Dashboard</span>
+      </div>
+      <div class="sb-nav-item" onclick="navigate('colaboradores')" title="Colaboradores">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="sb-tooltip">Colaboradores</span>
+      </div>
+      <div class="sb-nav-item" onclick="navigate('indicadores')" title="Indicadores">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span class="sb-tooltip">Indicadores</span>
+      </div>
+      <div class="sb-nav-item" onclick="navigate('apuracao')" title="Apuração PPP">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="sb-tooltip">Apuração PPP</span>
+      </div>
+      <div class="sb-nav-item" onclick="navigate('integracoes')" title="Integrações">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        <span class="sb-tooltip">Integrações</span>
+      </div>
+      <div class="sb-nav-item" onclick="navigate('configuracoes')" title="Configurações">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        <span class="sb-tooltip">Configurações</span>
+      </div>
+    </div>
+    <div class="sb-avatar">JP</div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="page-header">
+      <div>
+        <h1 id="page-title">Dashboard PPP</h1>
+        <div class="subtitle" id="page-sub">Visão geral do Prêmio por Produtividade — Ciclo 25/05 → 24/06/2026</div>
+      </div>
+      <div class="header-actions">
+        <span class="cycle-pill">Ciclo 25/05 → 24/06/2026</span>
+        <button class="btn-primary" onclick="openModal('modal-fechamento')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Fechar Ciclo
+        </button>
+      </div>
+    </div>
+
+    <div id="content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div class="view active" id="view-dashboard">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="mc-label">Colaboradores ativos</div>
+            <div class="mc-value">3.847</div>
+            <div class="mc-sub">Agrícola · Indústria · Oficina</div>
+            <div class="mc-badge blue">↑ 4% vs ciclo anterior</div>
+          </div>
+          <div class="metric-card">
+            <div class="mc-label">Dias acumulados (média)</div>
+            <div class="mc-value">14,3</div>
+            <div class="mc-sub">De 15 dias prêmio possíveis</div>
+            <div class="mc-badge green">95,3% aproveitamento</div>
+          </div>
+          <div class="metric-card">
+            <div class="mc-label">Superações (≥ 115%)</div>
+            <div class="mc-value">612</div>
+            <div class="mc-sub">Colaboradores com bônus 1,1×</div>
+            <div class="mc-badge green">15,9% do total</div>
+          </div>
+          <div class="metric-card">
+            <div class="mc-label">Projeção pagamento</div>
+            <div class="mc-value">R$ 4,2M</div>
+            <div class="mc-sub">Estimativa para fechamento</div>
+            <div class="mc-badge amber">Ciclo em aberto</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+              <div class="section-title">Desempenho por área <span class="pill">Ciclo atual</span></div>
+            </div>
+            <table>
+              <thead><tr><th>Área</th><th>Colaboradores</th><th>Média dias</th><th>% Superação</th><th>Progresso</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-green">Agrícola</span></td><td>2.140</td><td>14,8</td><td>18,2%</td><td><div class="progress-bar"><div class="progress-fill fill-green" style="width:98%"></div></div></td></tr>
+                <tr><td><span class="badge badge-blue">Indústria</span></td><td>1.230</td><td>13,1</td><td>11,4%</td><td><div class="progress-bar"><div class="progress-fill fill-amber" style="width:87%"></div></div></td></tr>
+                <tr><td><span class="badge badge-purple">Oficina</span></td><td>477</td><td>14,6</td><td>16,8%</td><td><div class="progress-bar"><div class="progress-fill fill-green" style="width:97%"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+              <div class="section-title">Exceções pendentes <span class="pill red">3 pendentes</span></div>
+            </div>
+            <table>
+              <thead><tr><th>Colaborador</th><th>Área</th><th>Inconsistência</th><th>Ação</th></tr></thead>
+              <tbody>
+                <tr><td>Maria S.</td><td>Colheita</td><td><span class="badge badge-amber">Dado ausente</span></td><td><button class="btn-primary" style="padding:4px 10px;font-size:11px" onclick="openModal('modal-excecao')">Justificar</button></td></tr>
+                <tr><td>João P.</td><td>Indústria</td><td><span class="badge badge-red">Divergência</span></td><td><button class="btn-primary" style="padding:4px 10px;font-size:11px" onclick="openModal('modal-excecao')">Justificar</button></td></tr>
+                <tr><td>Pedro A.</td><td>Oficina</td><td><span class="badge badge-amber">Dado ausente</span></td><td><button class="btn-primary" style="padding:4px 10px;font-size:11px" onclick="openModal('modal-excecao')">Justificar</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+            <div class="section-title">Últimas apurações processadas</div>
+          </div>
+          <table>
+            <thead><tr><th>Matrícula</th><th>Nome</th><th>Cargo</th><th>Área / Setor</th><th>Dias ating.</th><th>Superação</th><th>Bônus</th><th>Valor R$</th><th>Ações</th></tr></thead>
+            <tbody>
+              <tr style="cursor:pointer" onclick="navigate('detalhe')">
+                <td>0001</td><td><strong>Alcione R.</strong></td><td>Oper. Máq. Agrícolas A</td><td>Agrícola · Colheita</td>
+                <td><strong>21,1</strong></td><td><span class="badge badge-green">1,1×</span></td><td><span class="badge badge-green">Sim</span></td>
+                <td><strong>R$ 1.278,49</strong></td>
+                <td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button><button>✏️</button></div></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="navigate('detalhe')">
+                <td>0002</td><td><strong>Carlos M.</strong></td><td>Oper. Proc. Industriais B</td><td>Indústria · Fermentação</td>
+                <td><strong>14,4</strong></td><td><span class="badge badge-gray">1,0×</span></td><td><span class="badge badge-green">Sim</span></td>
+                <td><strong>R$ 711,91</strong></td>
+                <td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button><button>✏️</button></div></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="navigate('detalhe')">
+                <td>0003</td><td><strong>Sonia T.</strong></td><td>Coord. Manut. Automotiva</td><td>Oficina · Form. Lavoura</td>
+                <td><strong>22,7</strong></td><td><span class="badge badge-green">1,1×</span></td><td><span class="badge badge-red">Não</span></td>
+                <td><strong>R$ 2.441,74</strong></td>
+                <td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button><button>✏️</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== COLABORADORES ===== -->
+      <div class="view" id="view-colaboradores">
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <button class="btn-primary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Novo colaborador
+            </button>
+            <div class="search-box">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input placeholder="Busca por nome, matrícula...">
+            </div>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              <div class="btn-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+              <div class="btn-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div>
+              <div class="btn-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg></div>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th><input type="checkbox"></th><th>Matrícula</th><th>Nome</th><th>Cargo PPP</th><th>Área</th><th>Setor</th><th>Unidade</th><th>Escala</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox"></td><td>0001</td><td><strong>Alcione R.</strong></td><td><span class="badge badge-blue">Ope</span></td><td>Agrícola</td><td>Colheita</td><td>ANG</td><td>6×1</td><td><span class="badge badge-green">Ativo</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button><button>✏️</button><button>🗑</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0002</td><td><strong>Carlos M.</strong></td><td><span class="badge badge-blue">Ope</span></td><td>Indústria</td><td>Fermentação</td><td>AVI</td><td>—</td><td><span class="badge badge-green">Ativo</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button><button>✏️</button><button>🗑</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0003</td><td><strong>Sonia T.</strong></td><td><span class="badge badge-purple">Coo</span></td><td>Oficina</td><td>Form. Lavoura</td><td>IVI</td><td>6×1</td><td><span class="badge badge-green">Ativo</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button><button>✏️</button><button>🗑</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0004</td><td><strong>Bruno L.</strong></td><td><span class="badge badge-blue">Lid</span></td><td>Agrícola</td><td>Transporte</td><td>ANG</td><td>6×1</td><td><span class="badge badge-green">Ativo</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button><button>🗑</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0005</td><td><strong>Ana P.</strong></td><td><span class="badge badge-gray">Aux</span></td><td>Agrícola</td><td>Tratos Culturais</td><td>IVI</td><td>ADM</td><td><span class="badge badge-amber">Férias</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button><button>🗑</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0006</td><td><strong>Ricardo F.</strong></td><td><span class="badge badge-blue">Col</span></td><td>Oficina</td><td>Colheita Campo</td><td>ANG</td><td>6×1</td><td><span class="badge badge-green">Ativo</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button><button>🗑</button></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== DETALHE COLABORADOR ===== -->
+      <div class="view" id="view-detalhe">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn-secondary" onclick="navigate('colaboradores')" style="font-size:11px;padding:5px 10px">← Voltar</button>
+          <button class="btn-secondary" onclick="navigate('apuracao')" style="font-size:11px;padding:5px 10px">Ver apuração do ciclo</button>
+        </div>
+        <div class="two-col">
+          <div class="detail-panel">
+            <h3>Dados do colaborador</h3>
+            <div class="info-row">
+              <div class="info-item"><div class="ii-label">Nome</div><div class="ii-val">Alcione R.</div></div>
+              <div class="info-item"><div class="ii-label">Matrícula</div><div class="ii-val">0001</div></div>
+              <div class="info-item"><div class="ii-label">Cargo PPP</div><div class="ii-val"><span class="badge badge-blue">Ope</span></div></div>
+            </div>
+            <div class="info-row">
+              <div class="info-item"><div class="ii-label">Área</div><div class="ii-val">Agrícola</div></div>
+              <div class="info-item"><div class="ii-label">Setor</div><div class="ii-val">CTT — Colheita</div></div>
+              <div class="info-item"><div class="ii-label">Unidade</div><div class="ii-val">ANG — Angélica</div></div>
+            </div>
+            <div class="info-row">
+              <div class="info-item"><div class="ii-label">Escala</div><div class="ii-val">6×1</div></div>
+              <div class="info-item"><div class="ii-label">Dias base / Aprov.</div><div class="ii-val">30 dias · 50%</div></div>
+              <div class="info-item"><div class="ii-label">R$/dia produção</div><div class="ii-val">R$ 48,18</div></div>
+            </div>
+            <div class="info-row">
+              <div class="info-item"><div class="ii-label">Valor prêmio base</div><div class="ii-val">R$ 722,70</div></div>
+              <div class="info-item"><div class="ii-label">Dias prêmio possíveis</div><div class="ii-val">15 dias</div></div>
+              <div class="info-item"><div class="ii-label">Bônus assiduidade</div><div class="ii-val"><span class="badge badge-green">Aplicado (+20%)</span></div></div>
+            </div>
+          </div>
+          <div class="three-col">
+            <div class="acum-box">
+              <div class="acum-label">Dias acumulados</div>
+              <div class="acum-number">21,1</div>
+              <div class="acum-total">de 15 dias prêmio</div>
+              <div class="acum-value">+41% acima</div>
+            </div>
+            <div class="acum-box">
+              <div class="acum-label">Bônus superação</div>
+              <div class="acum-number">1,1×</div>
+              <div class="acum-total">≥ 115% atingido</div>
+              <div class="acum-value" style="color:#2563eb">Aplicado</div>
+            </div>
+            <div class="acum-box">
+              <div class="acum-label">Valor final</div>
+              <div class="acum-number" style="font-size:20px">R$1.278</div>
+              <div class="acum-total">com assiduidade</div>
+              <div class="acum-value">+41% vs prev.</div>
+            </div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+              <div class="section-title">Indicadores do ciclo <span class="pill">25/05 → 24/06</span></div>
+            </div>
+            <div class="ind-row" style="background:#f8f9fa;font-size:11px;font-weight:600;color:var(--text2)">
+              <span>Indicador / Fonte</span><span>Peso</span><span>Previsto</span><span>Realizado</span><span>Dias</span>
+            </div>
+            <div class="ind-row">
+              <div><div class="ind-name">Cana Entregue por frente</div><div class="ind-source">PIMS MENU · Balança</div></div>
+              <span class="badge badge-blue">70%</span>
+              <span class="ind-meta">85.098 t</span>
+              <span class="ind-meta">102.059 t</span>
+              <span class="ind-pct" style="color:#16a34a">16,6</span>
+            </div>
+            <div class="ind-row">
+              <div><div class="ind-name">Nota da Qualidade</div><div class="ind-source">Excel · Gabarito de campo</div></div>
+              <span class="badge badge-purple">30%</span>
+              <span class="ind-meta">70 pts</span>
+              <span class="ind-meta">64,3 pts</span>
+              <span class="ind-pct" style="color:#d97706">4,5</span>
+            </div>
+            <div style="padding:10px 12px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;font-weight:600">Total acumulado</span>
+              <span style="font-size:16px;font-weight:700;color:var(--green)">21,1 dias</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+              <div class="section-title">Calendário de atingimento <span class="pill">Memória de cálculo</span></div>
+            </div>
+            <div style="padding:12px 16px">
+              <div class="cal-grid" style="margin-bottom:4px">
+                <div class="cal-hdr">S</div><div class="cal-hdr">T</div><div class="cal-hdr">Q</div><div class="cal-hdr">Q</div><div class="cal-hdr">S</div><div class="cal-hdr">S</div><div class="cal-hdr">D</div>
+              </div>
+              <div class="cal-grid">
+                <div class="cal-day hit">25</div><div class="cal-day hit-super">26</div><div class="cal-day hit">27</div><div class="cal-day hit">28</div><div class="cal-day hit">29</div><div class="cal-day weekend">30</div><div class="cal-day weekend">31</div>
+                <div class="cal-day hit">1</div><div class="cal-day hit-super">2</div><div class="cal-day hit">3</div><div class="cal-day miss">4</div><div class="cal-day hit">5</div><div class="cal-day weekend">6</div><div class="cal-day weekend">7</div>
+                <div class="cal-day hit">8</div><div class="cal-day hit">9</div><div class="cal-day absent">10</div><div class="cal-day hit">11</div><div class="cal-day hit-super">12</div><div class="cal-day weekend">13</div><div class="cal-day weekend">14</div>
+                <div class="cal-day hit">15</div><div class="cal-day hit">16</div><div class="cal-day hit">17</div><div class="cal-day hit">18</div><div class="cal-day hit">19</div><div class="cal-day weekend">20</div><div class="cal-day weekend">21</div>
+                <div class="cal-day hit">22</div><div class="cal-day hit-super">23</div><div class="cal-day future">24</div><div class="cal-day future">—</div><div class="cal-day future">—</div><div class="cal-day future">—</div><div class="cal-day future">—</div>
+              </div>
+              <div class="legend-row">
+                <div class="legend-item"><div class="legend-dot" style="background:#dcfce7"></div>Atingiu</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Superou (≥115%)</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#fee2e2"></div>Não atingiu</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#f1f5f9"></div>Ausente/Falta</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== INDICADORES ===== -->
+      <div class="view" id="view-indicadores">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab(this,'t-catalogo')">Catálogo</button>
+          <button class="tab" onclick="switchTab(this,'t-formulas')">Fórmulas industriais</button>
+          <button class="tab" onclick="switchTab(this,'t-config')">Config. por setor</button>
+        </div>
+        <div id="t-catalogo">
+          <div class="table-wrap">
+            <div class="table-toolbar">
+              <button class="btn-primary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Novo indicador</button>
+              <div class="search-box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Buscar indicador..."></div>
+            </div>
+            <table>
+              <thead><tr><th>ID</th><th>Nome</th><th>Unid.</th><th>Área</th><th>Fonte de dados</th><th>Tipo conexão</th><th>Ações</th></tr></thead>
+              <tbody>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">577</td><td>Eficiência Industrial</td><td>%</td><td><span class="badge badge-blue">Indústria</span></td><td>PIMS PI</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button onclick="openModal('modal-formula')">👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">1386</td><td>Moagem Horária Efetiva</td><td>t/h</td><td><span class="badge badge-blue">Indústria</span></td><td>PIMS PI</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button onclick="openModal('modal-formula')">👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">2701</td><td>RTC — Rendimento Total Cristais</td><td>%</td><td><span class="badge badge-blue">Indústria</span></td><td>PIMS PI</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button onclick="openModal('modal-formula')">👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">1183</td><td>Aproveitamento de Tempo Indústria</td><td>%</td><td><span class="badge badge-blue">Indústria</span></td><td>PIMS PI</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button onclick="openModal('modal-formula')">👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">—</td><td>Cana Entregue por frente</td><td>ton</td><td><span class="badge badge-green">Agrícola</span></td><td>PIMS MENU / Balança</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">—</td><td>Nota da Qualidade — Colheita</td><td>pts</td><td><span class="badge badge-green">Agrícola</span></td><td>Excel fornecido pela área</td><td><span class="badge badge-amber">Importação manual</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">—</td><td>Disponibilidade Mecânica Colhedora</td><td>%</td><td><span class="badge badge-purple">Oficina</span></td><td>Solinftec</td><td><span class="badge badge-blue">API banco</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">—</td><td>Horas Deslocamento Motorista</td><td>h</td><td><span class="badge badge-green">Agrícola</span></td><td>Solinftec</td><td><span class="badge badge-amber">Extração relatório</span></td><td><div class="td-actions"><button>👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">6390</td><td>Energia Exportada</td><td>MWh</td><td><span class="badge badge-blue">Indústria</span></td><td>PIMS PI</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button onclick="openModal('modal-formula')">👁</button><button>✏️</button></div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace;color:#475569;font-size:11px">16209</td><td>Produção Horária Biogás</td><td>Nm³/h</td><td><span class="badge badge-blue">Indústria</span></td><td>PIMS PI</td><td><span class="badge badge-green">Banco direto</span></td><td><div class="td-actions"><button onclick="openModal('modal-formula')">👁</button><button>✏️</button></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="t-formulas" style="display:none">
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><div class="section-title">Fórmulas dos indicadores industriais</div></div>
+            <table>
+              <thead><tr><th>ID</th><th>Indicador</th><th>Fórmula de cálculo</th></tr></thead>
+              <tbody>
+                <tr><td style="font-family:'DM Mono',monospace">577</td><td>Eficiência Industrial</td><td><div class="formula-box">100 × (sacarose_produzida / sacarose_recebida)</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">1386</td><td>Moagem Horária Efetiva</td><td><div class="formula-box">cana_moida_total / tempo_efetivo_geral</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">2701</td><td>RTC</td><td><div class="formula-box">100 × ((52.63 × (açúcar_total + var_pol_mel) / 50)<br>+ ((prod_etanol + etanol_var_mel) / 0.5957))<br>/ total_ART_cana_moida</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">1183</td><td>Aprov. Tempo Indústria</td><td><div class="formula-box">100 × tempo_efetivo / (parada_industria + tempo_efetivo)</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">2941</td><td>Efic. Geral Destilaria</td><td><div class="formula-box">(efic_destilacao × efic_fermentacao) / 100</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">3537</td><td>Perda na Torta</td><td><div class="formula-box">100 × (torta / ART_total_recebido_cana_mel)</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">6390</td><td>Energia Exportada</td><td><div class="formula-box">SE(info_energia_exportada > -1):<br>  info_energia_exportada + ajuste_interligacao_AM2<br>SENÃO:<br>  (totalizador_saída - totalizador_entrada) + ajuste_AM2</div></td></tr>
+                <tr><td style="font-family:'DM Mono',monospace">16209</td><td>Produção Horária Biogás</td><td><div class="formula-box">producao_diaria_biogas / 24</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="t-config" style="display:none">
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><div class="section-title">Configuração de indicadores por área, unidade e setor</div></div>
+            <table>
+              <thead><tr><th>Área</th><th>Unidade</th><th>Setor</th><th>Indicador 1</th><th>Indicador 2</th><th>Indicador 3</th><th>Indicador 4</th></tr></thead>
+              <tbody>
+                <tr><td>Indústria</td><td>AVI</td><td>Gerais</td><td>RTC 30%</td><td>Moagem 35%</td><td>Disp. Ind. 35%</td><td>—</td></tr>
+                <tr><td>Indústria</td><td>AVI</td><td>Recepção/Extração</td><td>RTC 20%</td><td>Moagem 30%</td><td>Disp. Ind. 30%</td><td>Extração 20%</td></tr>
+                <tr><td>Indústria</td><td>AVI</td><td>Ferm./Dest./Fabricação</td><td>RTC 20%</td><td>Moagem 30%</td><td>Disp. Ind. 30%</td><td>EGD 20%</td></tr>
+                <tr><td>Indústria</td><td>AVI</td><td>Fabricação Açúcar</td><td>RTC 20%</td><td>Moagem 30%</td><td>Disp. Ind. 30%</td><td>SJM 20%</td></tr>
+                <tr><td>Indústria</td><td>AVI</td><td>Ger. Vapor/Energia</td><td>RTC 20%</td><td>Moagem 30%</td><td>Disp. Ind. 30%</td><td>Energia Export. 20%</td></tr>
+                <tr><td>Indústria</td><td>AVI</td><td>Biodigestor</td><td>RTC 20%</td><td>Moagem 30%</td><td>Disp. Ind. 30%</td><td>Biogás 20%</td></tr>
+                <tr><td>Indústria</td><td>UMA</td><td>Gerais</td><td>RTC 30%</td><td>Moagem 35%</td><td>Aprov. Tempo 35%</td><td>—</td></tr>
+                <tr><td>Indústria</td><td>UMA</td><td>Fabricação Açúcar</td><td>RTC 20%</td><td>Moagem 30%</td><td>Aprov. Tempo 30%</td><td>Pureza Mel Final 20%</td></tr>
+                <tr><td>Agrícola</td><td>ANG/IVI</td><td>CTT Colheita</td><td>Cana Entregue 70%</td><td>Nota Qualidade 30%</td><td>—</td><td>—</td></tr>
+                <tr><td>Agrícola</td><td>ANG/IVI</td><td>Transp. Canavieiro</td><td>Produção Caminhão 50%</td><td>Horas Deslocam. 50%</td><td>—</td><td>—</td></tr>
+                <tr><td>Agrícola</td><td>ANG/IVI</td><td>Plantio Mecanizado</td><td>Área Plantada 70%</td><td>Nota Qualidade 30%</td><td>—</td><td>—</td></tr>
+                <tr><td>Oficina</td><td>ANG/IVI</td><td>Manut. Interna Geral</td><td>Cana Entregue 35%</td><td>Área Plantada 35%</td><td>Disp. Colhedora 10%</td><td>Disp. Transbordo 10%</td></tr>
+                <tr><td>Oficina</td><td>ANG/IVI</td><td>Manut. Campo Colheita</td><td>Cana Entregue 70%</td><td>Disp. Colhedora 30%</td><td>—</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== APURAÇÃO ===== -->
+      <div class="view" id="view-apuracao">
+        <div class="metrics-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="metric-card">
+            <div class="mc-label">Processados hoje</div>
+            <div class="mc-value">3.847</div>
+            <div class="mc-sub">Último processamento: 06:00h</div>
+            <div class="mc-badge green">100% concluído</div>
+          </div>
+          <div class="metric-card">
+            <div class="mc-label">Dias restantes no ciclo</div>
+            <div class="mc-value">8</div>
+            <div class="mc-sub">Fechamento em 24/06/2026</div>
+            <div class="mc-badge amber">Ciclo em andamento</div>
+          </div>
+          <div class="metric-card">
+            <div class="mc-label">Exceções abertas</div>
+            <div class="mc-value">3</div>
+            <div class="mc-sub">Aguardando justificativa do gestor</div>
+            <div class="mc-badge red">Ação necessária</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <select><option>Todas as áreas</option><option>Agrícola</option><option>Indústria</option><option>Oficina</option></select>
+            <select><option>Todos os setores</option><option>CTT — Colheita</option><option>Fermentação/Destilaria</option><option>Manut. Interna</option></select>
+            <div class="search-box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Buscar colaborador..."></div>
+            <div style="margin-left:auto"><button class="btn-primary" onclick="openModal('modal-fechamento')">Fechar ciclo</button></div>
+          </div>
+          <table>
+            <thead><tr><th><input type="checkbox"></th><th>Matr.</th><th>Nome</th><th>Área / Setor</th><th>Dias base</th><th>Aprov.</th><th>Dias prêmio</th><th>Dias ating.</th><th>Superação</th><th>Bônus</th><th>Valor R$</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox"></td><td>0001</td><td><strong>Alcione R.</strong></td><td>Agrícola · Colheita</td><td>30</td><td>50%</td><td>15</td><td><strong>21,1</strong></td><td><span class="badge badge-green">1,1×</span></td><td><span class="badge badge-green">Sim</span></td><td><strong>R$ 1.278,49</strong></td><td><span class="badge badge-green">Apurado</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0002</td><td><strong>Carlos M.</strong></td><td>Indústria · Ferment.</td><td>30</td><td>50%</td><td>15</td><td><strong>14,4</strong></td><td><span class="badge badge-gray">1,0×</span></td><td><span class="badge badge-green">Sim</span></td><td><strong>R$ 711,91</strong></td><td><span class="badge badge-green">Apurado</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0003</td><td><strong>Sonia T.</strong></td><td>Oficina · Form. Lavoura</td><td>30</td><td>50%</td><td>15</td><td><strong>22,7</strong></td><td><span class="badge badge-green">1,1×</span></td><td><span class="badge badge-red">Não</span></td><td><strong>R$ 2.441,74</strong></td><td><span class="badge badge-green">Apurado</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0004</td><td><strong>Maria S.</strong></td><td>Agrícola · Colheita</td><td>30</td><td>50%</td><td>15</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="badge badge-red">Exceção</span></td><td><div class="td-actions"><button onclick="openModal('modal-excecao')">⚠️</button></div></td></tr>
+              <tr><td><input type="checkbox"></td><td>0005</td><td><strong>Bruno L.</strong></td><td>Agrícola · Transp.</td><td>25</td><td>60%</td><td>15</td><td><strong>13,2</strong></td><td><span class="badge badge-gray">1,0×</span></td><td><span class="badge badge-green">Sim</span></td><td><strong>R$ 890,34</strong></td><td><span class="badge badge-green">Apurado</span></td><td><div class="td-actions"><button onclick="navigate('detalhe')">👁</button></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== INTEGRAÇÕES ===== -->
+      <div class="view" id="view-integracoes">
+        <div class="int-cards">
+          <div class="int-card">
+            <div class="ic-header"><div class="ic-dot online"></div><span class="ic-name">PIMS PI</span></div>
+            <div class="ic-type">Indústria · Conexão banco</div>
+            <div class="ic-stat">Última sync: há 2 min</div>
+            <div class="ic-stat">12 indicadores ativos</div>
+            <div style="margin-top:8px"><span class="badge badge-green">Online</span></div>
+          </div>
+          <div class="int-card">
+            <div class="ic-header"><div class="ic-dot online"></div><span class="ic-name">PIMS MENU / Balança</span></div>
+            <div class="ic-type">Agrícola · Conexão banco</div>
+            <div class="ic-stat">Última sync: há 5 min</div>
+            <div class="ic-stat">8 indicadores ativos</div>
+            <div style="margin-top:8px"><span class="badge badge-green">Online</span></div>
+          </div>
+          <div class="int-card">
+            <div class="ic-header"><div class="ic-dot warning"></div><span class="ic-name">Solinftec</span></div>
+            <div class="ic-type">Agrícola / Oficina · API banco</div>
+            <div class="ic-stat">Última sync: há 38 min</div>
+            <div class="ic-stat">6 indicadores ativos</div>
+            <div style="margin-top:8px"><span class="badge badge-amber">Lento</span></div>
+          </div>
+          <div class="int-card">
+            <div class="ic-header"><div class="ic-dot offline"></div><span class="ic-name">Importador Excel</span></div>
+            <div class="ic-type">Qualidade · Upload manual</div>
+            <div class="ic-stat">Último upload: 3 dias atrás</div>
+            <div class="ic-stat">Aguardando arquivo</div>
+            <div style="margin-top:8px"><span class="badge badge-red">Pendente</span></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div class="section-title">Importador de planilhas — Dados de qualidade</div>
+            <button class="btn-primary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Importar planilha
+            </button>
+          </div>
+          <table>
+            <thead><tr><th>Arquivo</th><th>Área</th><th>Indicador</th><th>Data upload</th><th>Registros</th><th>Inconsistências</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:'DM Mono',monospace;font-size:11px">qualidade_colheita_jun26.xlsx</td><td>Agrícola</td><td>Nota Qualidade — Colheita</td><td>02/06/2026</td><td>248</td><td><span class="badge badge-green">0</span></td><td><span class="badge badge-green">Processado</span></td></tr>
+              <tr><td style="font-family:'DM Mono',monospace;font-size:11px">tratos_ang_mai26.xlsx</td><td>Agrícola</td><td>Tratos Culturais — ANG</td><td>28/05/2026</td><td>180</td><td><span class="badge badge-amber">2</span></td><td><span class="badge badge-amber">Revisão</span></td></tr>
+              <tr><td style="font-family:'DM Mono',monospace;font-size:11px">qualidade_plantio_jun26.xlsx</td><td>Agrícola</td><td>Nota Qualidade — Plantio</td><td>—</td><td>—</td><td>—</td><td><span class="badge badge-red">Pendente</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== CONFIGURAÇÕES ===== -->
+      <div class="view" id="view-configuracoes">
+        <div class="page-nav">
+          <button class="nav-btn active" onclick="switchSubNav(this,'cfg-premissas')">Premissas</button>
+          <button class="nav-btn" onclick="switchSubNav(this,'cfg-cargos')">Tabela de cargos</button>
+          <button class="nav-btn" onclick="switchSubNav(this,'cfg-ausencias')">Regras de ausência</button>
+        </div>
+        <div id="cfg-premissas">
+          <div class="detail-panel">
+            <h3>Regras gerais do programa PPP — Safra 2026</h3>
+            <div class="form-grid cols3">
+              <div class="form-group"><label>Ciclo de apuração</label><div class="field-val">Dia 25 → Dia 24 (mensal)</div></div>
+              <div class="form-group"><label>Meta de superação</label><div class="field-val">≥ 115% do previsto</div></div>
+              <div class="form-group"><label>Multiplicador superação</label><div class="field-val">1,1× (+10% no prêmio)</div></div>
+              <div class="form-group"><label>Bônus de assiduidade</label><div class="field-val">20% (multiplicador 1,2×)</div></div>
+              <div class="form-group"><label>Condição do bônus</label><div class="field-val">100% de comparecimento</div></div>
+              <div class="form-group"><label>Entressafra (sem produção)</label><div class="field-val">Assiduidade com peso 50%</div></div>
+              <div class="form-group"><label>Elegíveis</label><div class="field-val">Lideranças e operacionais</div></div>
+              <div class="form-group"><label>Não elegíveis</label><div class="field-val">Gerentes, supervisores, eng., admin., estagiários</div></div>
+              <div class="form-group"><label>Proporcionalidade</label><div class="field-val">Admissão e férias — proporcional</div></div>
+            </div>
+          </div>
+          <div class="detail-panel">
+            <h3>Regras de assiduidade e bônus</h3>
+            <div style="margin-bottom:10px;font-size:12px;color:var(--text2)">Ausências que <strong style="color:#16a34a">mantêm</strong> o bônus de 20%:</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+              <span class="badge badge-green">Licença Paternidade</span>
+              <span class="badge badge-green">Casamento</span>
+              <span class="badge badge-green">Doação de Sangue</span>
+              <span class="badge badge-green">Cartório Eleitoral</span>
+              <span class="badge badge-green">Alistamento Militar</span>
+              <span class="badge badge-blue">Parada Climática Coletiva</span>
+              <span class="badge badge-blue">Parada Técnica Coletiva</span>
+            </div>
+            <div class="divider"></div>
+            <div style="font-size:12px;color:var(--text2)">⚠️ <strong>Banco de horas</strong> sem compensação com saldo credor: <strong style="color:#dc2626">não aplica bônus</strong></div>
+          </div>
+        </div>
+        <div id="cfg-cargos" style="display:none">
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><div class="section-title">Tabela de cargos PPP e valores por escala</div></div>
+            <table>
+              <thead><tr><th>Cargo PPP</th><th>Valor prêmio</th><th>R$/dia (30d · 50%)</th><th>R$/dia (25d · 60%)</th><th>R$/dia (22d · 60%)</th><th>R$/dia (25d · 80%)</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-purple">Coordenador (Coo)</span></td><td>R$ 1.611,00</td><td>107,40</td><td>67,45</td><td>123,92</td><td>80,55</td></tr>
+                <tr><td><span class="badge badge-blue">Líder (Lid)</span></td><td>R$ 1.364,20</td><td>90,95</td><td>—</td><td>104,94</td><td>68,21</td></tr>
+                <tr><td><span class="badge badge-blue">Coletor (Col)</span></td><td>R$ 906,30</td><td>60,42</td><td>—</td><td>—</td><td>—</td></tr>
+                <tr><td><span class="badge badge-blue">Operacional (Ope)</span></td><td>R$ 722,70</td><td>48,18</td><td>—</td><td>55,59</td><td>36,14</td></tr>
+                <tr><td><span class="badge badge-blue">Ope 1</span></td><td>R$ 594,00</td><td>39,60</td><td>—</td><td>—</td><td>—</td></tr>
+                <tr><td><span class="badge badge-gray">Canavieiro</span></td><td>R$ 1.011,80</td><td>67,45</td><td>67,45</td><td>—</td><td>—</td></tr>
+                <tr><td><span class="badge badge-gray">Transbordo (Transb)</span></td><td>R$ 738,50</td><td>49,23</td><td>—</td><td>—</td><td>—</td></tr>
+                <tr><td><span class="badge badge-gray">Auxiliar (Aux)</span></td><td>R$ 521,20</td><td>34,75</td><td>—</td><td>40,09</td><td>26,06</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="cfg-ausencias" style="display:none">
+          <div class="table-wrap">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><div class="section-title">Tipos de ausência e impacto no bônus de assiduidade</div></div>
+            <table>
+              <thead><tr><th>Tipo de ausência</th><th>Conta como falta</th><th>Aplica bônus 20%</th><th>Impacto no acumulador</th></tr></thead>
+              <tbody>
+                <tr><td>Falta injustificada</td><td><span class="badge badge-red">Sim</span></td><td><span class="badge badge-red">Não</span></td><td>Perde elegibilidade ao bônus no ciclo</td></tr>
+                <tr><td>Licença Paternidade / Casamento / etc.</td><td><span class="badge badge-amber">Sim (formal)</span></td><td><span class="badge badge-green">Sim</span></td><td>Não penaliza o bônus</td></tr>
+                <tr><td>Parada climática ou técnica coletiva</td><td><span class="badge badge-green">Não</span></td><td><span class="badge badge-green">Sim</span></td><td>Dia computado normalmente</td></tr>
+                <tr><td>Banco de horas (sem saldo credor)</td><td><span class="badge badge-amber">Sim</span></td><td><span class="badge badge-red">Não</span></td><td>Bônus não aplicado no período</td></tr>
+                <tr><td>Férias</td><td><span class="badge badge-green">Não</span></td><td><span class="badge badge-green">Proporcional</span></td><td>Prêmio calculado proporcionalmente</td></tr>
+                <tr><td>Admissão no meio do ciclo</td><td><span class="badge badge-green">Não</span></td><td><span class="badge badge-green">Proporcional</span></td><td>Prêmio calculado pelos dias ativos</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAIS -->
+<div class="modal-overlay" id="modal-formula">
+  <div class="modal">
+    <div class="modal-header">
+      <div><h2>Fórmula — RTC (ID 2701)</h2><div class="modal-sub">Rendimento Total em Cristais · PIMS PI · Indústria AVI/UMA</div></div>
+      <button class="modal-close" onclick="closeModal('modal-formula')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-row">
+        <div class="info-item"><div class="ii-label">Unidade</div><div class="ii-val">%</div></div>
+        <div class="info-item"><div class="ii-label">Fonte</div><div class="ii-val">PIMS PI</div></div>
+        <div class="info-item"><div class="ii-label">Tipo de conexão</div><div class="ii-val"><span class="badge badge-green">Banco direto</span></div></div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:12px;font-weight:500;margin-bottom:6px">Fórmula de cálculo:</div>
+      <div class="formula-box">100 × (<br>&nbsp;&nbsp;( 52.63 × (açúcar_total_prod_100 + var_massa_pol_mel) / 50 )<br>&nbsp;&nbsp;+<br>&nbsp;&nbsp;( (prod_etanol_100 + etanol_var_mel_final) / 0.5957 )<br>) / total_ART_cana_moida_dig</div>
+      <div class="divider"></div>
+      <div style="font-size:12px;font-weight:500;margin-bottom:8px">Variáveis necessárias (via PIMS PI):</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span class="badge badge-gray">açúcar_total_prod_100</span>
+        <span class="badge badge-gray">var_massa_pol_mel</span>
+        <span class="badge badge-gray">prod_etanol_100</span>
+        <span class="badge badge-gray">etanol_var_mel_final</span>
+        <span class="badge badge-gray">total_ART_cana_moida_dig</span>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('modal-formula')">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-excecao">
+  <div class="modal">
+    <div class="modal-header">
+      <div><h2>Gestão de exceção</h2><div class="modal-sub">Maria S. · Agrícola · Colheita · 04/06/2026</div></div>
+      <button class="modal-close" onclick="closeModal('modal-excecao')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-row">
+        <div class="info-item"><div class="ii-label">Tipo</div><div class="ii-val"><span class="badge badge-amber">Dado ausente</span></div></div>
+        <div class="info-item"><div class="ii-label">Indicador afetado</div><div class="ii-val">Nota da Qualidade</div></div>
+        <div class="info-item"><div class="ii-label">Fonte esperada</div><div class="ii-val">Excel · Gabarito</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Justificativa do gestor</label>
+        <textarea style="resize:vertical;min-height:80px" placeholder="Descreva a justificativa para esta inconsistência..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Ação a tomar</label>
+        <select>
+          <option>Considerar dia como não atingido</option>
+          <option>Aguardar reenvio de dados pela área</option>
+          <option>Aprovar com valor informado manualmente</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-excecao')">Cancelar</button>
+      <button class="btn-primary" onclick="closeModal('modal-excecao')">Salvar justificativa</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-fechamento">
+  <div class="modal">
+    <div class="modal-header">
+      <div><h2>Fechar ciclo PPP</h2><div class="modal-sub">Ciclo 25/05 → 24/06/2026 · Safra 2026</div></div>
+      <button class="modal-close" onclick="closeModal('modal-fechamento')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-warning">⚠️ <strong>Atenção:</strong> existem 3 exceções pendentes. O fechamento irá gerar os valores para pagamento em folha. Esta ação não pode ser desfeita após confirmação.</div>
+      <div class="info-row">
+        <div class="info-item"><div class="ii-label">Colaboradores processados</div><div class="ii-val">3.844 / 3.847</div></div>
+        <div class="info-item"><div class="ii-label">Exceções pendentes</div><div class="ii-val" style="color:#dc2626;font-weight:700">3</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-item"><div class="ii-label">Valor total projetado</div><div class="ii-val" style="color:var(--green);font-size:18px;font-weight:700">R$ 4.218.430,00</div></div>
+        <div class="info-item"><div class="ii-label">Data de pagamento</div><div class="ii-val">05/07/2026 (folha)</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-fechamento')">Cancelar</button>
+      <button class="btn-primary danger" onclick="closeModal('modal-fechamento')">Confirmar fechamento</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const pages = {
+  dashboard:   {title:'Dashboard PPP',           sub:'Visão geral do Prêmio por Produtividade — Ciclo 25/05 → 24/06/2026'},
+  colaboradores:{title:'Colaboradores',           sub:'Gestão de colaboradores elegíveis ao programa PPP'},
+  detalhe:     {title:'Alcione R. — Detalhe PPP',sub:'Matrícula 0001 · Agrícola · CTT Colheita · ANG — Angélica'},
+  indicadores: {title:'Indicadores',              sub:'Catálogo de indicadores, fórmulas e configurações por setor'},
+  apuracao:    {title:'Apuração PPP',             sub:'Motor de cálculo · Ciclo 25/05 → 24/06/2026'},
+  integracoes: {title:'Integrações — Data Hub',   sub:'Status das conexões com PIMS PI, PIMS MENU, Solinftec e Importador Excel'},
+  configuracoes:{title:'Configurações',           sub:'Premissas, cargos e regras do programa — Safra 2026'}
+};
+const navIndex = {dashboard:0,colaboradores:1,detalhe:1,indicadores:2,apuracao:3,integracoes:4,configuracoes:5};
+
+function navigate(page){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const v = document.getElementById('view-'+page);
+  if(v) v.classList.add('active');
+  const p = pages[page]||{title:page,sub:''};
+  document.getElementById('page-title').textContent = p.title;
+  document.getElementById('page-sub').textContent   = p.sub;
+  document.querySelectorAll('.sb-nav-item').forEach((el,i)=>el.classList.toggle('active', i===(navIndex[page]||0)));
+}
+
+function switchTab(btn, id){
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('[id^="t-"]').forEach(el=>el.style.display='none');
+  const t = document.getElementById(id);
+  if(t) t.style.display='block';
+}
+
+function switchSubNav(btn, id){
+  btn.closest('.page-nav').querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['cfg-premissas','cfg-cargos','cfg-ausencias'].forEach(k=>{
+    const el=document.getElementById(k);
+    if(el) el.style.display = k===id?'block':'none';
+  });
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
